@@ -1,4 +1,5 @@
-from xml.dom.minidom import Document
+
+from langchain_core.documents import Document
 from state import RAGstate, DocEvalScore
 from langchain_core.prompts import ChatPromptTemplate
 from llm import get_llm
