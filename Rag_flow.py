@@ -5,7 +5,8 @@ from langchain_groq import ChatGroq
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.graph.message import add_messages
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.vectorstores import Chroma,FAISS
+#from langchain_community.vectorstores import Chroma,FAISS
+from langchain_chroma import Chroma
 from dotenv import load_dotenv
 from langchain_huggingface import HuggingFaceEndpointEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
@@ -45,5 +46,40 @@ def load_vector_store():
     return vector_store
 
 
+def get_all_pdfs():
+    try:
+        vector_store = Chroma(
+            persist_directory="./chroma_db",
+            embedding_function=get_embeddings()
+        )
+
+        data = vector_store.get()
+
+        unique_pdfs = set()
+
+        for meta in data["metadatas"]:
+            if meta and "source" in meta:
+                pdf_name = os.path.basename(meta["source"])
+                unique_pdfs.add(pdf_name)
+
+        #print("PDFs Found:", unique_pdfs)
+
+        return sorted(unique_pdfs)
+
+    except Exception as e:
+        print(e)
+        return []
+    
+    
+def delete_embeddings_of_book_from_vectorstore(book_name):
+    vector_store = Chroma(
+    embedding_function=get_embeddings(),
+    persist_directory="./chroma_db"
+    )
+    
+    vector_store.delete(where= {'source': book_name})
+
 if __name__ == "__main__":
-    create_vector_store(filepath="Leave-Policy.pdf")
+    #create_vector_store(filepath="uploaded_docs/Leave-Policy.pdf")
+    #get_all_pdfs()
+    delete_embeddings_of_book_from_vectorstore("CS50_AI_with_Python_Detailed_Notes.pdf")
