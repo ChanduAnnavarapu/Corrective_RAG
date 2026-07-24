@@ -46,17 +46,19 @@ graph.add_edge("generate_answer", END)
 
 workflow = graph.compile()
 
-initial_state = RAGstate(
-    Question="What is ml?",
-    Docs=[],
-    strips=[],
-    kept_strips=[],
-    web_docs=[],
-    refined_context="",
-    answer=""
-)
-
-agent=workflow.invoke(initial_state)
-print("Final State:", agent)
+def ask_question(question: str):
+    
+    initial_state = RAGstate(
+        Question=question,
+        Docs=[],
+        strips=[],
+        kept_strips=[],
+        web_docs=[],
+        refined_context="",
+        answer=""
+    )
+    
+    result = workflow.invoke(initial_state)
+    return result
 
 

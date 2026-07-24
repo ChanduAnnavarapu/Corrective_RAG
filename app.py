@@ -1,87 +1,312 @@
 import streamlit as st
-from Corrective_RAG_Architecture import workflow
+import os
+from chromadb import PersistentClient
 
-# Page configuration
+from Corrective_RAG_Architecture import workflow
+from Rag_flow import create_vector_store, get_all_pdfs
+
+# ---------------------------------------------------
+# PAGE CONFIG
+# ---------------------------------------------------
+
 st.set_page_config(
     page_title="Corrective RAG",
     page_icon="🤖",
-    layout="centered"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
-st.title("🤖 Corrective RAG")
-st.markdown(
+st.markdown("""
+<style>
+
+/* Remove top padding */
+.block-container {
+    padding-top: 2rem;
+    padding-bottom: 1rem;
+}
+
+/* Reduce sidebar top spacing */
+section[data-testid="stSidebar"] {
+    padding-top: 0rem;
+}
+
+/* Remove extra space above main content */
+[data-testid="stAppViewContainer"] {
+    padding-top: 0rem;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------------------------------------------
+# SESSION STATE
+# ---------------------------------------------------
+
+if "chat_sessions" not in st.session_state:
+    st.session_state.chat_sessions = {
+        "Chat 1": []
+    }
+
+if "current_chat" not in st.session_state:
+    st.session_state.current_chat = "Chat 1"
+
+# ---------------------------------------------------
+# SIDEBAR (CHAT HISTORY)
+# ---------------------------------------------------
+
+with st.sidebar:
+    
+    st.markdown(
     """
-    Ask a question about your documents.
-    If retrieved documents are insufficient, the system performs corrective retrieval
-    using web search before generating the final answer.
-    """
-)
+    <style>
+        section[data-testid="stSidebar"] {
+            width: 220px !important;
+        }
 
-# User input
-question = st.text_input(
-    "Enter your question:",
-    placeholder="What is the leave policy for employees?"
-)
+        section[data-testid="stSidebar"] > div {
+            width: 220px !important;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+    )
 
-if st.button("Submit"):
+    st.title("💬 Chats")
 
-    if not question.strip():
-        st.warning("Please enter a question.")
-        st.stop()
+    if st.button("➕ New Chat", use_container_width=True):
 
-    with st.spinner("Processing..."):
+        chat_num = len(st.session_state.chat_sessions) + 1
 
-        try:
-            initial_state = {
-                "Question": question,
-                "Docs": [],
-                "strips": [],
-                "kept_strips": [],
-                "web_docs": [],
-                "refined_context": "",
-                "answer": ""
-            }
+        chat_name = f"Chat {chat_num}"
+
+        st.session_state.chat_sessions[chat_name] = []
+
+        st.session_state.current_chat = chat_name
+
+    st.divider()
+
+    for chat_name in st.session_state.chat_sessions:
+
+        if st.button(
+            chat_name,
+            use_container_width=True
+        ):
+            st.session_state.current_chat = chat_name
+
+# ---------------------------------------------------
+# MAIN LAYOUT
+# ---------------------------------------------------
+
+center, right = st.columns([4, 1.5])
+
+# ===================================================
+# CENTER PANEL
+# ===================================================
+
+with center:
+
+    st.markdown(
+        """
+        <div style='text-align:left'>
+            <h1>🤖 Corrective RAG</h1>
+            <p style='font-size:18px;color:gray'>
+                Adaptive RAG pipeline that validates retrieved documents, filters irrelevant context, and automatically falls back to web search when local knowledge is insufficient.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    inner_left, inner_center, inner_right = st.columns([0.01, 5, 0.2])
+
+    with inner_center:
+
+        question = st.text_input(
+            "",
+            placeholder="Ask a question..."
+        )
+
+        submit = st.button(
+            "Submit",
+            use_container_width=True
+        )
+
+    # ------------------------------------------------
+
+    if submit and question:
+
+        initial_state = {
+            "Question": question,
+            "Docs": [],
+            "refined_context": [],
+            "web_docs": [],
+            "answer": ""
+        }
+
+        with st.spinner("Generating response..."):
 
             result = workflow.invoke(initial_state)
 
-            st.success("Response Generated")
+        answer = result.get("answer", "")
 
-            # Final Answer
-            st.subheader("Answer")
+        verdict = result.get(
+            "verdict",
+            "UNKNOWN"
+        )
+        
+        try:
+            with inner_center:
+                #st.success("Response Generated")
 
-            answer = (
-                result.get("answer")
-                or "No answer generated."
-            )
+                st.markdown(
+                    f"### Verdict: {"Retrieved from RAG" if verdict=="CORRECT" else 
+                    "Answered with websearch" if verdict=="INCORRECT" else "Retrieved documents are not sufficient to answer the question web search used to answer fully"}"
+                )
 
-            st.write(answer)
+                st.write(answer)
 
-            # Retrieved Documents
-            docs = result.get("Docs", [])
-
-            if docs:
-                with st.expander("Retrieved Documents"):
-
-                    for idx, doc in enumerate(docs, start=1):
-
-                        st.markdown(f"**Document {idx}**")
-
-                        if hasattr(doc, "page_content"):
-                            st.write(doc.page_content)
-                        else:
-                            st.write(doc)
-
-                        st.divider()
-
-            # Debug State
-            with st.expander("Workflow State"):
-
-                st.json(
+                st.session_state.chat_sessions[
+                    st.session_state.current_chat
+                ].append(
                     {
-                        k: str(v)
-                        for k, v in result.items()
+                        "question": question,
+                        "answer": answer
                     }
                 )
 
+            # ----------------------------
+            # Retrieved Docs
+            # ----------------------------
+
+                with st.expander(
+                    "📄 Retrieved Documents"
+                ):
+
+                    docs = result.get(
+                        "Docs",
+                        []
+                    )
+
+                    if docs:
+
+                        for idx, doc in enumerate(
+                            docs,
+                            start=1
+                        ):
+
+                            st.markdown(
+                                f"### Document {idx}"
+                            )
+
+                            st.write(doc)
+
+                    else:
+                        st.info(
+                            "No retrieved documents."
+                        )
+
+                # ----------------------------
+                # Workflow State
+                # ----------------------------
+
+                with st.expander(
+                    "⚙ Workflow State"
+                ):
+
+                    st.json(result)
+                           
         except Exception as e:
-            st.error(f"Error: {str(e)}")
+            with inner_center:
+                st.error(e)
+
+# ===================================================
+# RIGHT PANEL
+# ===================================================
+
+with right:
+
+    st.markdown(
+        "#### 📚 Knowledge Base"
+    )
+
+    uploaded_pdf = st.file_uploader(
+        "Upload PDF",
+        type=["pdf"]
+    )
+
+    # ------------------------------------
+
+    if st.button(
+        "Create Embeddings",
+        use_container_width=True
+    ):
+
+        if uploaded_pdf is None:
+
+            st.warning(
+                "Please upload a PDF."
+            )
+
+        else:
+
+            os.makedirs(
+                "uploaded_docs",
+                exist_ok=True
+            )
+
+            save_path = os.path.join(
+                "uploaded_docs",
+                uploaded_pdf.name
+            )
+
+            with open(
+                save_path,
+                "wb"
+            ) as f:
+
+                f.write(
+                    uploaded_pdf.getbuffer()
+                )
+
+            with st.spinner(
+                "Creating embeddings..."
+            ):
+
+                create_vector_store(
+                    save_path
+                )
+
+            st.success(
+                "Embeddings Created"
+            )
+    st.divider()
+    
+    st.markdown(
+        "#### 📄 Indexed PDFs"
+    )
+
+    try:
+
+        unique_pdfs=get_all_pdfs()
+
+        if unique_pdfs:
+
+            for pdf in sorted(
+                unique_pdfs
+            ):
+
+                st.write(
+                    f"📄 {pdf}"
+                )
+
+        else:
+
+            st.info(
+                "No PDFs indexed."
+            )
+
+    except Exception:
+
+        st.info(
+            "No PDFs indexed."
+        )
