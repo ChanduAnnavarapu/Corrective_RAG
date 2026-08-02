@@ -23,11 +23,11 @@ def refine_context_node(state: RAGstate)->RAGstate:
     web_docs = [doc.page_content for doc in web_docs_with_info]
     
     if state["verdict"] == "CORRECT":
-        context = "\n\n".join(good_docs).strip()
+        context = "\n\n".join([doc.page_content for doc in good_docs]).strip()
     elif state["verdict"] == "INCORRECT":
         context = "\n\n".join(web_docs).strip()
     else:
-        context = "\n\n".join(good_docs + web_docs).strip()
+        context = "\n\n".join([doc.page_content for doc in good_docs] + web_docs).strip()
 
     filter_prompt = ChatPromptTemplate.from_messages(
     [

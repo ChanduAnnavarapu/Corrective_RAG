@@ -41,7 +41,7 @@ def eval_doc_node(state: RAGstate)->RAGstate:
     
     if len(docs) > 0:
         for doc in docs:
-            out=doc_eval_chain.invoke({"question": question, "chunk": doc})
+            out=doc_eval_chain.invoke({"question": question, "chunk": doc.page_content})
             scores.append(out.score)
             reasons.append(out.reason)
             

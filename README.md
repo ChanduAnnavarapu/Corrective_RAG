@@ -16,7 +16,7 @@ The workflow evaluates retrieved documents and dynamically applies different ret
 | Decision | Action |
 |-----------|----------|
 | Correct | Use retrieved documents |
-| Ambiguous | Retrieve additional context |
+| Ambiguous | use relevant retrieved documents and web search to answer the question |
 | Incorrect | Perform web search using Tavily |
 
 ---

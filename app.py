@@ -110,7 +110,7 @@ with center:
         <div style='text-align:left'>
             <h1>🤖 Corrective RAG</h1>
             <p style='font-size:18px;color:gray'>
-                Adaptive RAG pipeline that validates retrieved documents, filters irrelevant context, and automatically falls back to web search when local knowledge is insufficient.
+                Adaptive RAG pipeline that validates retrieved documents, filters relevant context, and automatically falls back to web search when local knowledge is insufficient.
             </p>
         </div>
         """,
@@ -134,33 +134,39 @@ with center:
     # ------------------------------------------------
 
     if submit and question:
-
-        initial_state = {
-            "Question": question,
-            "Docs": [],
-            "refined_context": [],
-            "web_docs": [],
-            "answer": ""
-        }
-
-        with st.spinner("Generating response..."):
-
-            result = workflow.invoke(initial_state)
-
-        answer = result.get("answer", "")
-
-        verdict = result.get(
-            "verdict",
-            "UNKNOWN"
-        )
         
         try:
+
+            initial_state = {
+                "Question": question,
+                "Docs": [],
+                "refined_context": [],
+                "web_docs": [],
+                "answer": "",
+                "good_docs": [],
+                "verdict": "",
+                "reason": "",
+                "strips": [],
+                "kept_strips": []
+            }
+
+            with st.spinner("Generating response..."):
+
+                result = workflow.invoke(initial_state)
+
+            answer = result.get("answer", "")
+
+            verdict = result.get(
+                "verdict",
+                "UNKNOWN"
+            )
+        
             with inner_center:
                 #st.success("Response Generated")
 
                 st.markdown(
-                    f"### Verdict: {"Retrieved from RAG" if verdict=="CORRECT" else 
-                    "Answered with websearch" if verdict=="INCORRECT" else "Retrieved documents are not sufficient to answer the question web search used to answer fully"}"
+                    f"### Verdict: {"Answered using Retrieved Documents" if verdict=="CORRECT" else 
+                    "Answered with websearch" if verdict=="INCORRECT" else "Retrieved documents and web search used to answer fully"}"
                 )
 
                 st.write(answer)
@@ -178,32 +184,42 @@ with center:
             # Retrieved Docs
             # ----------------------------
 
-                with st.expander(
-                    "📄 Retrieved Documents"
-                ):
+                with st.expander("📄 Retrieved Documents"):
 
-                    docs = result.get(
-                        "Docs",
-                        []
-                    )
+                    good_docs = result.get("good_docs", [])
+                    web_docs = result.get("web_docs", [])
 
-                    if docs:
+                    # -----------------------
+                    # Vector Store Documents
+                    # -----------------------
+                    st.markdown("### 📚 Vector Store")
 
-                        for idx, doc in enumerate(
-                            docs,
-                            start=1
-                        ):
-
-                            st.markdown(
-                                f"### Document {idx}"
+                    if good_docs:
+                        for idx, doc in enumerate(good_docs, start=1):
+                            st.markdown(f"#### Document {idx}")
+                            st.write(
+                                f"**Source:** {doc.metadata.get('source', 'Unknown')} | "
+                                f"**Page:** {doc.metadata.get('page', 'Unknown')}"
                             )
-
-                            st.write(doc)
-
+                            st.write(doc.page_content)
                     else:
-                        st.info(
-                            "No retrieved documents."
-                        )
+                        st.markdown(f"##### No vector documents used.")
+
+                    st.divider()
+
+                    # -----------------------
+                    # Web Documents
+                    # -----------------------
+                    st.markdown("### 🌐 Web Search")
+
+                    if web_docs:
+                        for idx, doc in enumerate(web_docs, start=1):
+                            st.markdown(f"#### Web Result {idx}")
+                            st.write(f"**Title:** {doc.metadata.get('title', 'Unknown')}")
+                            st.write(f"**URL:** {doc.metadata.get('url', 'Unknown')}")
+                            st.write(doc.page_content)
+                    else:
+                        st.markdown(f"##### No web search documents used.")
 
                 # ----------------------------
                 # Workflow State
@@ -217,7 +233,7 @@ with center:
                            
         except Exception as e:
             with inner_center:
-                st.error(e)
+                st.error(f"something went wrong: {e}")
 
 # ===================================================
 # RIGHT PANEL

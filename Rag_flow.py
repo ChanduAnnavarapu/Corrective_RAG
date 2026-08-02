@@ -14,6 +14,7 @@ import os
 import sqlite3
 from dotenv import load_dotenv
 load_dotenv()
+from pathlib import Path
 
 from state import RAGstate
 from llm import get_llm, get_embeddings
@@ -76,10 +77,23 @@ def delete_embeddings_of_book_from_vectorstore(book_name):
     embedding_function=get_embeddings(),
     persist_directory="./chroma_db"
     )
-    
-    vector_store.delete(where= {'source': book_name})
 
+    data = vector_store.get()
+    found = False
+
+    for metadata in data["metadatas"]:
+        if metadata["source"] == book_name:
+            found = True
+            break
+
+    if found:
+        vector_store.delete(where={"source": book_name})
+        print(f"Deleted embeddings for {book_name}")
+    else:
+        print(f"No embeddings found for {book_name}")
+        
+        
 if __name__ == "__main__":
     #create_vector_store(filepath="uploaded_docs/Leave-Policy.pdf")
     #get_all_pdfs()
-    delete_embeddings_of_book_from_vectorstore("CS50_AI_with_Python_Detailed_Notes.pdf")
+    delete_embeddings_of_book_from_vectorstore("uploaded_docs\\Mahi_book.pdf")
