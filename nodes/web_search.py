@@ -13,7 +13,8 @@ tavily = TavilySearchResults(max_results=5,
 def web_search_node(state: RAGstate) -> RAGstate:
 
     q = state["Question"]  # no query rewrite
-    results = tavily.invoke({"query": q})  # no knowledge selection
+    results = tavily.invoke({"query": q,
+                             "max_results": 5})  # no knowledge selection
 
     web_docs = []
     for r in results or []:

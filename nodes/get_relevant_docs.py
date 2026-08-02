@@ -6,5 +6,5 @@ def get_relevant_docs(state:RAGstate):
     vector_store = load_vector_store()
     relevant_docs = vector_store.similarity_search(query, k=3)
     return { 
-            "Docs": [doc.page_content for doc in relevant_docs if len(relevant_docs) > 0]
+            "Docs": relevant_docs
             }
