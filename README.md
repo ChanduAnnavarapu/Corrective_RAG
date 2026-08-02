@@ -1,174 +1,234 @@
 # Corrective RAG using LangGraph
 
-A Corrective Retrieval-Augmented Generation (C-RAG) system built with LangGraph, LangChain, ChromaDB, Groq LLM, and Tavily Search.
+A production-style **Corrective Retrieval-Augmented Generation (CRAG)** application built with **LangGraph**, **LangChain**, **ChromaDB**, **Groq LLM**, **HuggingFace Embeddings**, **Tavily Search**, and **Streamlit**.
 
-The workflow evaluates retrieved documents and dynamically applies different retrieval strategies before generating a final answer.
+Unlike a traditional RAG pipeline, this project evaluates the quality of retrieved documents before generating a response. Depending on the retrieval quality, it intelligently decides whether to:
 
----
+- Answer directly from retrieved documents
+- Combine retrieved documents with web search
+- Ignore retrieved documents and rely completely on web search
 
-## Architecture
-
-![Corrective_RAG](Architecture.png)
-
----
-### Retrieval Decisions
-
-| Decision | Action |
-|-----------|----------|
-| Correct | Use retrieved documents |
-| Ambiguous | use relevant retrieved documents and web search to answer the question |
-| Incorrect | Perform web search using Tavily |
+This significantly improves answer quality and reduces hallucinations.
 
 ---
 
-## Project Structure
+# Architecture
+
+![Corrective RAG Architecture](Architecture.png)
+
+---
+
+# Retrieval Decisions
+
+| Decision | Description |
+|-----------|-------------|
+| **Correct** | Retrieved documents are sufficient to answer the query. |
+| **Ambiguous** | Retrieved documents are partially relevant. Retrieve additional information using Tavily Search and merge both contexts. |
+| **Incorrect** | Retrieved documents are irrelevant. Ignore them and generate the answer completely from web search. |
+
+---
+
+# Project Structure
 
 ```text
 Corrective_RAG/
 │
-├── Corrective_RAG_Architecture.py   # LangGraph workflow
-├── Rag_flow.py                      # Document retrieval
-├── eval_doc_node.py                 # Retrieval evaluation
-├── ambiguous_retrieval.py           # Ambiguous retrieval handling
-├── web_search.py                    # Tavily web search
-├── refine_context.py                # Context refinement & merging
-├── generate_answer.py               # Final answer generation
-├── llm.py                           # LLM configuration
-├── state.py                         # Graph state definition
+├── app.py                          # Streamlit application
+├── Corrective_RAG_Architecture.py  # LangGraph workflow
+├── Rag_flow.py                     # Chroma retrieval
+├── llm.py                          # LLM configuration
+├── state.py                        # Graph state
 │
-├── chroma_db/                       # Vector database
-├── Leave-Policy.pdf                 # Sample knowledge base
+├── nodes/
+│   ├── get_relevant_docs.py        # Retrieve vector documents
+│   ├── eval_doc_node.py            # Evaluate retrieval quality
+│   ├── ambiguous_retrieval.py      # Handle ambiguous retrieval
+│   ├── web_search.py               # Tavily web search
+│   ├── refine_context.py           # Merge retrieved and web documents
+│   └── generate_answer.py          # Final answer generation
 │
+├── uploaded_docs/                  # User uploaded knowledge base
+├── chroma_db/                      # Chroma vector database
+│
+├── basic_RAG/                      # Basic RAG implementation
+├── env_template.txt
 ├── requirements.txt
 └── README.md
 ```
 
 ---
 
-## Workflow
+# LangGraph Nodes
 
-### 1. Retrieve Documents
+## 1. Retrieve Documents
 
-`Rag_flow.py`
+**nodes/get_relevant_docs.py**
 
-- Retrieves relevant documents from ChromaDB.
+- Searches ChromaDB
+- Retrieves top matching document chunks
+- Stores retrieved documents in graph state
 
-### 2. Evaluate Retrieval
+---
 
-`eval_doc_node.py`
+## 2. Evaluate Retrieval
 
-Classifies retrieval quality as:
+**nodes/eval_doc_node.py**
+
+Uses an LLM to classify retrieval into one of three categories:
 
 - Correct
 - Ambiguous
 - Incorrect
 
-### 3.1 Corrective Retrieval
-- Retrieved documnets are sufficient to generate the answer
+---
 
-### 3.2 Ambiguous Retrieval
+## 3. Ambiguous Retrieval
 
-`ambiguous_retrieval.py`
+**nodes/ambiguous_retrieval.py**
 
-- Retrieved documents can't answer the question fully, so retrieved documents valid but still not sufficient
+When retrieved documents are only partially useful:
 
-- additional information is collected from web search
-
-- there relevant retrieved documents and wen search documents are combined and used for answer genration
-
-### 3.3 Incorrect Retrieval
-
-`web_search.py`
-
-- Uses Tavily Search to fetch relevant web content.there web search documents are used to generate answers
-
-### 4. Refine Context
-
-`refine_context.py`
-
-- Combines RAG documents and web search results.
-- Produces the final context used by the LLM.
-
-### 5. Generate Answer
-
-`generate_answer.py`
-
-- Generates the final response using the refined context.
+- Extracts useful retrieved documents
+- Performs Tavily web search
+- Stores both retrieved and web documents separately
 
 ---
 
-## Tech Stack
+## 4. Web Search
 
+**nodes/web_search.py**
+
+When retrieval is classified as incorrect:
+
+- Ignores retrieved documents
+- Retrieves fresh information from Tavily Search
+- Uses web results for answer generation
+
+---
+
+## 5. Refine Context
+
+**nodes/refine_context.py**
+
+Creates the final context for the LLM by combining:
+
+- Relevant retrieved documents
+- Web search documents
+
+depending on the retrieval decision.
+
+---
+
+## 6. Generate Answer
+
+**nodes/generate_answer.py**
+
+Generates the final response using the refined context.
+
+---
+
+# Features
+
+- Corrective RAG (CRAG)
+- LangGraph state machine
+- Dynamic retrieval evaluation
+- Intelligent web search fallback
+- Context refinement
+- ChromaDB vector store
+- HuggingFace embeddings
+- Tavily Search integration
+- Streamlit user interface
+- User document upload support
+- Modular node-based architecture
+- Reduced hallucinations
+
+---
+
+# Tech Stack
+
+- Python
 - LangGraph
 - LangChain
 - ChromaDB
-- Groq (Llama 3.3 70B)
 - HuggingFace Embeddings
-- Tavily Search
-- Python
+- Groq (Llama 3.3 70B)
+- Tavily Search API
+- Streamlit
 
 ---
 
-## Installation
-Clone project from github
+# Installation
+
+Clone the repository
+
 ```bash
 git clone https://github.com/ChanduAnnavarapu/Corrective_RAG.git
 ```
-Open the project in VS Code and create virtual environment
+
+Move into the project directory
+
+```bash
+cd Corrective_RAG
+```
+
+Create a virtual environment
+
 ```bash
 python -m venv .venv
 ```
-activate the virtual environment
+
+Activate the environment
+
+Windows
+
 ```bash
-.\.venv\Scripts\Activate
+.\.venv\Scripts\activate
 ```
-install the required packages using requirements.txt
+
+Linux / macOS
+
+```bash
+source .venv/bin/activate
+```
+
+Install dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
-Create `.env` file, by following env.template.txt
-provide groq_api_key which is created in groq_cloud
-provide the tavily_api_key
+
+---
+
+# Environment Variables
+
+Create a `.env` file using `env_template.txt`.
 
 ```env
-API_KEY=<groq_api_key>
-TAVILY_API_KEY=<tavily_api_key>
+API_KEY=your_groq_api_key
+TAVILY_API_KEY=your_tavily_api_key
 ```
 
 ---
 
-## Run
+# Run the Application
+
+Launch the Streamlit application
 
 ```bash
-python Corrective_RAG_Architecture.py
-```
-
-Visualize the graph:
-
-```python
-from Corrective_RAG_Architecture import workflow
-from IPython.display import Image, display
-
-display(Image(workflow.get_graph().draw_mermaid_png()))
+streamlit run app.py
 ```
 
 ---
 
-## Features
+# Build the Vector Database
 
-- Corrective RAG Architecture
-- Dynamic Retrieval Evaluation
-- Web Search Fallback
-- Context Refinement
-- Reduced Hallucinations
-- LangGraph State Management
+Upload your documents through the Streamlit interface.
+
+The application automatically:
+
+- Splits documents into chunks
+- Generates embeddings
+- Stores them in ChromaDB
+- Uses them for future retrieval
 
 ---
-
-## Future Enhancements
-
-- Query Rewriting
-- Hybrid Search (BM25 + Vector Search)
-- Source Citations
-- Multi-Hop Retrieval
-- Agentic RAG
